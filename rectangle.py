@@ -1,51 +1,96 @@
 import cv2
 import numpy as np
+import time
 
-# 这个类用于在屏幕上定义和操作矩形区域（可以看作是“虚拟按钮”）
-class Rect():
-    def __init__(self, x, y, width, height, color, text='', alpha=0.5):
-        # 矩形的左上角坐标 (x, y)
-        self.x = x
-        self.y = y
-        # 矩形的宽度和高度
-        self.width = width
-        self.height = height
-        # 矩形的颜色 (BGR格式)
+class UIButton:
+    """具备几何图标绘制能力的工业级 UI 按钮"""
+    def __init__(self, x, y, size, color, label=None, icon_type=None, is_circle=False):
+        self.x, self.y = x, y
+        self.size = size
         self.color = color
-        # 矩形中心显示的文本
-        self.text = text
-        # 矩形的透明度 (0.0 完全透明, 1.0 完全不透明)
-        self.alpha = alpha
+        self.label = label
+        self.icon_type = icon_type  # 'clear', 'eraser', 'brush'
+        self.is_circle = is_circle
+        
+        self.is_hovered = False
+        self.hover_start_time = 0
+        self.click_duration = 0.6  # 悬停 0.6 秒触发点击
+        self.id = None
 
-    def draw_rect(self, img, text_color=(255, 255, 255), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, thickness=2):
-        # 在传入的图像 (img) 上绘制带透明效果的矩形
-        rec_roi = img[self.y: self.y + self.height, self.x: self.x + self.width]
-        w_rect = np.ones(rec_roi.shape, dtype=np.uint8)
-        w_rect[:] = self.color
-        # 使用权重混合实现透明效果
-        res = cv2.addWeighted(rec_roi, self.alpha, w_rect, 1 - self.alpha, 1.0)
-        img[self.y: self.y + self.height, self.x: self.x + self.width] = res
+    def update(self, mx, my):
+        """更新悬停状态并返回是否触发点击"""
+        dist = ((mx - self.x)**2 + (my - self.y)**2)**0.5
+        if self.is_circle:
+            in_range = dist < self.size // 2
+        else:
+            in_range = abs(mx - self.x) < self.size // 2 and abs(my - self.y) < self.size // 2
 
-        # 计算文字位置，使其在矩形正中心显示
-        text_size = cv2.getTextSize(self.text, fontFace, fontScale, thickness)
-        text_pos = (int(self.x + self.width / 2 - text_size[0][0] / 2),
-                    int(self.y + self.height / 2 + text_size[0][1] / 2))
-        cv2.putText(img, self.text, text_pos, fontFace, fontScale, text_color, thickness)
+        if in_range:
+            if not self.is_hovered:
+                self.is_hovered = True
+                self.hover_start_time = time.time()
+            
+            elapsed = time.time() - self.hover_start_time
+            if elapsed >= self.click_duration:
+                self.is_hovered = False # 触发后重置
+                return True, 1.0
+            return False, elapsed / self.click_duration
+        else:
+            self.is_hovered = False
+            return False, 0.0
 
-    def add_image(self, img, img2):
-        # 在矩形区域内叠加一张带Alpha通道（透明背景）的图片（例如图标）
-        rec_roi = img[self.y: self.y + self.height, self.x: self.x + self.width]
-        # 分离Alpha通道
-        alpha = img2[:, :, -1]
-        img_bgr = img2[:, :, :-1]
-        # 只在Alpha通道为不透明（255）的地方进行像素替换
-        rec_roi[alpha == 255] = img_bgr[alpha == 255]
-        img[self.y: self.y + self.height, self.x: self.x + self.width] = rec_roi
-        return img
+    def draw(self, img):
+        """根据类型绘制按钮外观"""
+        s = self.size
+        # 1. 绘制底色/外圈
+        if self.is_circle:
+            cv2.circle(img, (self.x, self.y), s // 2, self.color, -1, cv2.LINE_AA)
+            cv2.circle(img, (self.x, self.y), s // 2 + 2, (255, 255, 255), 1, cv2.LINE_AA)
+        else:
+            cv2.rectangle(img, (self.x - s // 2, self.y - s // 2), 
+                          (self.x + s // 2, self.y + s // 2), self.color, -1)
+            cv2.rectangle(img, (self.x - s // 2, self.y - s // 2), 
+                          (self.x + s // 2, self.y + s // 2), (255, 255, 255), 1, cv2.LINE_AA)
 
-    def is_over(self, x, y):
-        # 判断传入的坐标点 (x, y) 是否在这个矩形范围内
-        # 常用于检测手指是否“点击”或“悬停”在按钮上
-        if (self.x + self.width > x > self.x) and (self.y + self.height > y > self.y):
-            return True
-        return False
+        # 2. 绘制程序化几何图标
+        if self.icon_type == 'clear':
+            self._draw_clear_icon(img)
+        elif self.icon_type == 'eraser':
+            self._draw_eraser_icon(img)
+        elif self.icon_type == 'brush':
+            self._draw_brush_icon(img)
+        
+        # 3. 绘制文字标签 (如果有)
+        if self.label:
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            fs = 0.5
+            (tw, th), _ = cv2.getTextSize(self.label, font, fs, 1)
+            cv2.putText(img, self.label, (self.x - tw // 2, self.y + th // 2), 
+                        font, fs, (255, 255, 255), 1, cv2.LINE_AA)
+
+    def _draw_clear_icon(self, img):
+        """绘制几何垃圾桶图标"""
+        cx, cy, r = self.x, self.y, self.size // 4
+        # 桶身
+        cv2.rectangle(img, (cx-r, cy-r+4), (cx+r, cy+r), (255, 255, 255), 2, cv2.LINE_AA)
+        # 桶盖
+        cv2.line(img, (cx-r-4, cy-r+4), (cx+r+4, cy-r+4), (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.line(img, (cx-4, cy-r+4), (cx-4, cy-r), (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.line(img, (cx+4, cy-r+4), (cx+4, cy-r), (255, 255, 255), 2, cv2.LINE_AA)
+
+    def _draw_eraser_icon(self, img):
+        """绘制斜切橡皮图标"""
+        cx, cy, r = self.x, self.y, self.size // 3
+        pts = np.array([[cx-r, cy], [cx, cy-r], [cx+r, cy], [cx, cy+r]], np.int32)
+        cv2.polylines(img, [pts], True, (255, 255, 255), 2, cv2.LINE_AA)
+        # 填充一半表示擦除端
+        fill_pts = np.array([[cx-r, cy], [cx, cy-r], [cx, cy], [cx-r//2, cy+r//2]], np.int32)
+        cv2.fillPoly(img, [fill_pts], (255, 255, 255))
+
+    def _draw_brush_icon(self, img):
+        """绘制带光芒的画笔图标"""
+        cx, cy, r = self.x, self.y, self.size // 4
+        cv2.circle(img, (cx, cy), r, (255, 255, 255), -1, cv2.LINE_AA)
+        # 绘制十字光芒
+        cv2.line(img, (cx-r-6, cy), (cx+r+6, cy), (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.line(img, (cx, cy-r-6), (cx, cy+r+6), (255, 255, 255), 1, cv2.LINE_AA)
