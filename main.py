@@ -140,6 +140,8 @@ class HUDManager:
 
     def __init__(self):
         self.panel_rect = (CONFIG.HUD_X, CONFIG.HUD_Y, CONFIG.HUD_W, CONFIG.HUD_H)
+        self.font_main: ImageFont.ImageFont | ImageFont.FreeTypeFont
+        self.font_sub: ImageFont.ImageFont | ImageFont.FreeTypeFont
         self._init_fonts()
 
     def _init_fonts(self):
@@ -247,7 +249,8 @@ class QuantumPaintApp:
         self.display_fps = 0.0
         self.fps_list = []
 
-    def _init_dock(self):
+    @staticmethod
+    def _init_dock():
         """
         创建顶部工具栏按钮。
 
@@ -321,7 +324,8 @@ class QuantumPaintApp:
         self.current_alpha = 0.0
         self.display_alpha = 0.0
 
-    def _get_pointer(self, left_pos, right_pos):
+    @staticmethod
+    def _get_pointer(left_pos, right_pos):
         """
         选出用于界面交互的当前指针位置。
 
@@ -338,7 +342,8 @@ class QuantumPaintApp:
             return left_pos[8]
         return None
 
-    def _get_draw_input(self, fingers, left_pos, right_pos):
+    @staticmethod
+    def _get_draw_input(fingers, left_pos, right_pos):
         """
         选出当前真正用于绘图的输入点。
 
@@ -383,13 +388,18 @@ class QuantumPaintApp:
             self.prev_draw_pt = draw_pt
             return
 
+        canvas = self.canvas
+        if canvas is None:
+            return
+
         color, outer_thickness, inner_thickness = self._get_stroke_style()
-        cv2.line(self.canvas, self.prev_draw_pt, draw_pt, color, outer_thickness, cv2.LINE_AA)
+        cv2.line(canvas, self.prev_draw_pt, draw_pt, color, outer_thickness, cv2.LINE_AA)
         if inner_thickness is not None:
-            cv2.line(self.canvas, self.prev_draw_pt, draw_pt, color, inner_thickness, cv2.LINE_AA)
+            cv2.line(canvas, self.prev_draw_pt, draw_pt, color, inner_thickness, cv2.LINE_AA)
         self.prev_draw_pt = draw_pt
 
-    def _draw_toolbar(self, frame) -> None:
+    @staticmethod
+    def _draw_toolbar(frame) -> None:
         """
         绘制顶部半透明工具栏背景。
 
@@ -418,7 +428,8 @@ class QuantumPaintApp:
             cv2.LINE_AA,
         )
 
-    def _draw_hover_feedback(self, frame, pointer, button, progress) -> None:
+    @staticmethod
+    def _draw_hover_feedback(frame, pointer, button, progress) -> None:
         """
         为当前悬停按钮绘制视觉反馈。
 
