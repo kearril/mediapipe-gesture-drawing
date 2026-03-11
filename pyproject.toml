@@ -7,4 +7,11 @@ dependencies = [
     "mediapipe>=0.10.32",
     "numpy>=2.4.3",
     "opencv-python>=4.13.0.92",
+    "pyrefly>=0.55.0",
+    "ruff>=0.15.5",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.5",
 ]
