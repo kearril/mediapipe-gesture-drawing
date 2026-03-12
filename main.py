@@ -28,7 +28,7 @@ from stroke_filter import StrokeSmoother
 class CONFIG:
 
     #项目运行参数配置。
-    WIN_NAME = "Quantum Paint AR"  # OpenCV 窗口标题，会显示在程序窗口顶部。
+    WIN_NAME = "Mediapipe Gesture Drawing"  # OpenCV 窗口标题，会显示在程序窗口顶部。
     FRAME_W, FRAME_H = 1280, 720  # 摄像头采集与显示使用的目标分辨率，直接影响画布尺寸和按钮布局基准。
 
     UI_DEADZONE_Y = 135  # 顶部工具栏下方的绘图死区高度，指针落在这条线以上时不会在画布上落笔。
