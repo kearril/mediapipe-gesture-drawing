@@ -32,7 +32,12 @@
 
 按 `Esc` 键即可退出程序。
 
+
 ## demo展示
+
+
+https://github.com/user-attachments/assets/6cc3c1c6-f83c-4c59-9021-7e1114a9164a
+
 
 ## 技术栈
 
