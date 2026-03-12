@@ -10,7 +10,7 @@ AR 手势绘画演示主程序。
 
 整体设计思路是“一个主循环 + 若干小辅助函数”：
 主循环负责按帧推进，辅助函数分别处理 FPS、手势、绘图、工具栏和光标，
-这样既能保持实时渲染流程清晰，也便于后续继续扩展交互逻辑。
+
 """
 
 import threading
@@ -26,14 +26,8 @@ from stroke_filter import StrokeSmoother
 
 
 class CONFIG:
-    """
-    项目运行参数集中配置。
 
-    这里统一收纳窗口尺寸、工具栏布局、手势阈值、滤波参数等内容，
-    这样当交互手感或 UI 布局需要微调时，可以优先在这里调整，
-    不必在主逻辑中到处查找硬编码常量。
-    """
-
+    #项目运行参数配置。
     WIN_NAME = "Quantum Paint AR"  # OpenCV 窗口标题，会显示在程序窗口顶部。
     FRAME_W, FRAME_H = 1280, 720  # 摄像头采集与显示使用的目标分辨率，直接影响画布尺寸和按钮布局基准。
 
@@ -60,18 +54,12 @@ class CONFIG:
     HUD_W = 280  # HUD 面板宽度，影响文字区与颜色指示区的布局。
     HUD_H = 115  # HUD 面板高度，决定状态信息的垂直排布空间。
 
-    FONT_PATH = "C:/Windows/Fonts/STKAITI.TTF"  # HUD 中文字体路径；当前使用华文楷体，不存在时会自动回退到默认字体。
+    FONT_PATH = "C:/Windows/Fonts/STKAITI.TTF"  # HUD 中文字体路径；当前使用华文楷体。
 
 
 class WebcamStream:
-    """
-    摄像头异步读取器。
 
-    由于摄像头读取本身可能阻塞，主线程如果直接 `read()`，
-    会影响界面刷新、手部的检测提交和笔迹绘制的连贯性。
-    因此这里使用后台线程持续拉取最新帧，主循环只取副本。
-    """
-
+    #摄像头异步读取器。
     def __init__(self, src=0):
         self.stream = cv2.VideoCapture(src)
         self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, CONFIG.FRAME_W)
@@ -129,13 +117,6 @@ class WebcamStream:
 class HUDManager:
     """
     负责左上角 HUD 状态面板的绘制。
-
-    HUD 显示的是用户当前最关心的状态：
-    - 正在用什么工具
-    - 当前是否处于绘图状态
-    - 实时帧率
-    - 当前滤波响应程度
-    - 当前颜色
     """
 
     def __init__(self):
@@ -148,9 +129,6 @@ class HUDManager:
         """
         加载 HUD 用字体。
 
-        优先尝试项目当前指定的中文字体；
-        如果本机没有这套字体，则退回到 PIL 默认字体，
-        保证界面至少还能正常显示。
         """
         try:
             self.font_main = ImageFont.truetype(CONFIG.FONT_PATH, 18)
@@ -165,7 +143,7 @@ class HUDManager:
 
         这里先用 OpenCV 画半透明底板和颜色指示圆，
         再借助 PIL 处理中文文本绘制，最后写回到原图像。
-        这样可以同时兼顾 OpenCV 图元效率和中文显示效果。
+
         """
         panel_x, panel_y, panel_w, panel_h = self.panel_rect
         roi = frame[panel_y:panel_y + panel_h, panel_x:panel_x + panel_w]
@@ -259,7 +237,6 @@ class QuantumPaintApp:
         - 工具切换（清空 / 橡皮 / 画笔）
         - 笔刷尺寸
 
-        每个按钮都通过 `id` 保存语义信息，后续点击时统一分发处理。
         """
         buttons = []
         base_y = 62
@@ -300,9 +277,6 @@ class QuantumPaintApp:
         """
         更新滚动平均帧率。
 
-        这里不是直接用单帧耗时算 FPS，
-        而是维护一个短窗口平均值，目的是让 HUD 数字更稳定、
-        不至于每一帧都剧烈抖动。
         """
         frame_time = timestamp - self.prev_time
         self.fps_list.append(frame_time if frame_time > 0 else 0.033)
@@ -664,9 +638,7 @@ class QuantumPaintApp:
     def _draw_cursor(self, frame, pointer):
         """
         在画面中绘制当前画笔光标。
-
         只有当指针位于工具栏死区下方时才显示，
-        这样用户在操作工具栏按钮时不会被画布光标干扰。
         """
         if not pointer or pointer[1] <= CONFIG.UI_DEADZONE_Y:
             return
